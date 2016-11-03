@@ -5,13 +5,21 @@ def proc():
 
 class Model(object):
     def __init__(self, values):
+        self._commited = {}
+        self._dirty = {}
         for name, col in self.__class__.__dict__.items():
             if not isinstance(col, Col): continue
             if name in values:
-                self.__dict__[name] = values[name] #col.read(values[name])
+                self._commited[name] = values[name] #col.read(values[name])
 
     def __str__(self):
         return "<Model %s>: %s" % (self.__class__.__name__, self.__dict__)
+
+    def __getattr__(self, key):
+        pass
+    def __setattr__(self, key, value):
+        pass
+
     @classmethod
     def get(cls, *args, **kwargs):
         filters = []
