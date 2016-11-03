@@ -4,7 +4,7 @@ class GeneralProcessor(object):
 
     def Select(self, table, columns, filters=[], relations=[]):
         pass
-    def Insert(self, table, columns, values):
+    def Insert(self, table, values):
         pass
     def Update(self, table, values, filters=[], relations=[]):
         pass

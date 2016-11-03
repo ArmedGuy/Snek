@@ -1,4 +1,6 @@
 from .general_processor import GeneralProcessor
+import psycopg2
+import psycopg2.extras
 class PostgresProcessor(GeneralProcessor):
     def __init__(self, conn):
         self._connection = conn
@@ -9,11 +11,13 @@ class PostgresProcessor(GeneralProcessor):
         query.append("FROM")
         query.append(self._escapeName(table))
         query.append(self._compileFilters(filters))
-        cur = self._connection.cursor()
+        cur = self._connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(" ".join(query))
         return cur.fetchall()
 
-    def Insert(self, table, columns, values):
+    def Insert(self, table, values):
+        columns = values.keys()
+        values = values.values()
         query = ["INSERT", "INTO"]
         query.append(self._escapeName(table))
         query.append("(%s)" % (",".join([self._escapeName(c) for c in columns])))
@@ -52,7 +56,7 @@ class PostgresProcessor(GeneralProcessor):
         self._executeNoResult(" ".join(query))
 
     def _executeNoResult(self, query):
-        cur = self._connection.cursor()
+        cur = self._connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(query)
         self._connection.commit()
 
@@ -70,6 +74,8 @@ class PostgresProcessor(GeneralProcessor):
         return " ".join(ret[0:-1])
 
     def _escapeName(self, name):
+        if name == "*":
+            return name
         ret = []
         if "." in name:
             parts = name.split('.')
