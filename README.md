@@ -9,4 +9,4 @@ Built by me and @kitzin
  - Basic CRUD for Models, some extended support for Select's
  - Relations might come - foreign key is foreign concept
  - Ugly use of Python 3 builtins module to pass DB connection from main class to models.
-
+ - Swag
