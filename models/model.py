@@ -5,7 +5,7 @@ def proc():
 
 
 class Model():
-    def __init__(self, values):
+    def __init__(self, **values):
         self._reserved = ["get", "find"]
         self._columns = {}
         self._commited = {}
@@ -29,9 +29,10 @@ class Model():
     def __getattribute__(self, name):
         if name.startswith("_"):
             return object.__getattribute__(self, name)
-        elif name in dir(self.__class__) and callable(getattr(self.__class__,name)):
+        cls = self.__class__
+        clsdir = dir(cls)
+        if name in clsdir and (callable(getattr(cls,name)) or isinstance(getattr(cls,name), property)):
             return object.__getattribute__(self, name)
-
         elif name in self._reserved:
             return object.__getattribute__(self, name)
         else:
@@ -64,6 +65,7 @@ class Model():
         for k,v in self._dirty.items():
             self._commited[k] = v
         self._dirty = {}
+
     @classmethod
     def get(cls, *args, **kwargs):
         filters = []
@@ -75,7 +77,7 @@ class Model():
         if(len(results)) != 1:
             raise Exception()
         else:
-            return cls(results[0])
+            return cls(**results[0])
 
     @classmethod
     def find(cls, *args, **kwargs):
@@ -85,4 +87,4 @@ class Model():
         for key, value in kwargs.items():
             filters.append((key, "=", value))
         results = proc().Select(cls.__name__, '*', filters=filters)
-        return [cls(res) for res in results]
+        return [cls(**res) for res in results]
