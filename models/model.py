@@ -2,7 +2,24 @@ import builtins
 from .column import Col
 def proc():
     return builtins._snek_instance._processor
+class ModelAttribute(object):
+    pass
+class ModelForeignToPrimaryAttribute(ModelAttribute):
+    def __init__(self, primary_key_class, primary_key, column):
+        self._pkc = primary_key_class
+        self._pk = primary_key
+        self._column = column
+        self._cache = None
 
+    def __get__(self, instance, owner):
+        if self._cache == None:
+            self._cache = self._pkc.get(**({self._pk: getattr(instance, self._column.name)}))
+        return self._cache
+
+    def __set__(self, instance, value):
+        key = getattr(value, self._pk)
+        setattr(instance, self._column.name, key)
+        self._cache = None
 
 class Model():
     def __init__(self, **values):
@@ -16,32 +33,63 @@ class Model():
         self._commited = {}
         self._dirty = {}
         self._columns = {}
-        for name, col in self.__class__.__dict__.items():
+        i = [x for x in self.__class__.__dict__.items()] # force iterator as array
+        for name, col in i:
             if not isinstance(col, Col): continue
             col.name = name
             self._columns[name] = col
             if name in values:
                 if self._exists:
-                    self._commited[name] = values[name] #col.read(values[name])
+                    if col.args.get("_foreignKey"):
+                        # patch foreign class
+                        proxy_name = col.name.replace("_key", "")
+                        print(proxy_name)
+                        fc = col.args.get("_foreignClass")
+                        pk = col.args.get("_foreignClassPrimaryKey")
+                        print(pk)
+                        proxy = ModelForeignToPrimaryAttribute(fc, pk, col)
+                        setattr(self, proxy_name, proxy)
+                    else:
+                        self._commited[name] = values[name] #col.read(values[name])
                 else:
                     self._dirty[name] = values[name]
 
-
     # internal function overrides
     def __str__(self):
-        return "<Model %s>: %s" % (self.__class__.__name__, self.__dict__)
+        return "<Model %s>: %s, %s" % (self.__class__.__name__, self._commited, self.dirty)
 
     def __getattribute__(self, name):
         if name.startswith("_"):
             return object.__getattribute__(self, name)
+        if name in self._columns.keys():
+            raise AttributeError()
+        else:
+            value = object.__getattribute__(self, name)
+            if hasattr(value, '__get__'):
+                value = value.__get__(self, self.__class__)
+            return value
+    """
         cls = self.__class__
         clsdir = dir(cls)
+        print("pre")
+        value = object.__getattribute__(self, name)
+        print("post")
+        print(self.__dict__)
         if name in clsdir and (callable(getattr(cls,name)) or isinstance(getattr(cls,name), property)):
-            return object.__getattribute__(self, name)
+            pass
+        elif isinstance(self.__dict__[name], property):
+            print("instance prop")
         elif name in self._reserved:
-            return object.__getattribute__(self, name)
+            pass
         else:
             raise AttributeError()
+        print("val")
+        print(value)
+        if hasattr(value, '__get__'):
+            print("do the get")
+            value = value.__get__(self, self.__class__)
+        return value
+    """
 
     def __getattr__(self, key):
         if not key.startswith("_") and key in self._columns.keys():
@@ -56,7 +104,14 @@ class Model():
         if not key.startswith("_") and key in self._columns.keys():
             self._dirty[key] = value
         else:
-            self.__dict__[key] = value
+            try:
+                obj = object.__getattribute__(self, key)
+            except AttributeError:
+                pass
+            else:
+                if hasattr(obj, '__set__'):
+                    return obj.__set__(self, value)
+            return object.__setattr__(self, key, value)
     # properties
     def _get_dirty(self):
         return len(self._dirty.keys()) != 0

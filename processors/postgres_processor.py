@@ -26,6 +26,7 @@ class PostgresProcessor(GeneralProcessor):
         query.append("RETURNING %s" % self._escapeName(returns))
         cur = self._connection.cursor()
         cur.execute(" ".join(query))
+        self._connection.commit()
         return cur.fetchone()[0]
 
     def Update(self, table, values, filters=[], relations=[]):
