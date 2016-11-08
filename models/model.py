@@ -6,6 +6,11 @@ def proc():
 
 class Model():
     def __init__(self, **values):
+        if '__exists' in values:
+            self._exists = True
+            del values['__exists']
+        else:
+            self._exists = False
         self._reserved = ["get", "find"]
         self._columns = {}
         self._commited = {}
@@ -16,13 +21,13 @@ class Model():
             col.name = name
             self._columns[name] = col
             if name in values:
-                self._commited[name] = values[name] #col.read(values[name])
+                if self._exists:
+                    self._commited[name] = values[name] #col.read(values[name])
+                else:
+                    self._dirty[name] = values[name]
 
-    def pk(self):
-        primary = [(key, c) for key,c in self._columns.items() if c.args.get('primary')][0]
-        primary[1].name = primary[0]
-        return primary[1]
 
+    # internal function overrides
     def __str__(self):
         return "<Model %s>: %s" % (self.__class__.__name__, self.__dict__)
 
@@ -52,19 +57,40 @@ class Model():
             self._dirty[key] = value
         else:
             self.__dict__[key] = value
-
-    def dirty(self):
+    # properties
+    def _get_dirty(self):
         return len(self._dirty.keys()) != 0
+    dirty = property(_get_dirty)
 
+    def _get_primary(self):
+        primary = [(key, c) for key,c in self._columns.items() if c.args.get('primary')][0]
+        primary[1].name = primary[0]
+        return primary[1]
+    primary_key = property(_get_primary)
+
+    def _get_table_name(self):
+        return self.__class__.__name__
+    table_name = property(_get_table_name)
+
+    # save
     def save(self):
-        if not self.dirty():
+        if not self.dirty:
             return
-        primary = self.pk()
-        primary_value = getattr(self, primary.name)
-        proc().Update(self.__class__.__name__, self._dirty, [(primary.name, '=', primary_value)])
-        for k,v in self._dirty.items():
-            self._commited[k] = v
-        self._dirty = {}
+        if self._exists: # remote object exists, update
+            primary = self.primary_key
+            primary_value = getattr(self, primary.name)
+            proc().Update(self.table_name, self._dirty, [(primary.name, '=', primary_value)])
+            for k,v in self._dirty.items():
+                self._commited[k] = v
+            self._dirty = {}
+        else: # no remote object, insert
+            pk = self.primary_key
+            primary = proc().Insert(self.table_name, self._dirty, pk.name)
+            setattr(self, pk.name, primary)
+            self._exists = True
+            for k,v in self._dirty.items():
+                self._commited[k] = v
+            self._dirty = {}
 
     @classmethod
     def get(cls, *args, **kwargs):
@@ -77,7 +103,9 @@ class Model():
         if(len(results)) != 1:
             raise Exception()
         else:
-            return cls(**results[0])
+            values = results[0]
+            values['__exists'] = True
+            return cls(**values)
 
     @classmethod
     def find(cls, *args, **kwargs):
@@ -87,4 +115,8 @@ class Model():
         for key, value in kwargs.items():
             filters.append((key, "=", value))
         results = proc().Select(cls.__name__, '*', filters=filters)
-        return [cls(**res) for res in results]
+        found = []
+        for res in results:
+            res['__exists'] = True
+            found.append(cls(**res))
+        return found

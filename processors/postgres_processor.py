@@ -15,7 +15,7 @@ class PostgresProcessor(GeneralProcessor):
         cur.execute(" ".join(query))
         return cur.fetchall()
 
-    def Insert(self, table, values):
+    def Insert(self, table, values, returns):
         columns = values.keys()
         values = values.values()
         query = ["INSERT", "INTO"]
@@ -23,8 +23,10 @@ class PostgresProcessor(GeneralProcessor):
         query.append("(%s)" % (",".join([self._escapeName(c) for c in columns])))
         query.append("VALUES")
         query.append("(%s)" % (",".join([self._escapeValue(v) for v in values])))
-
-        self._executeNoResult(" ".join(query))
+        query.append("RETURNING %s" % self._escapeName(returns))
+        cur = self._connection.cursor()
+        cur.execute(" ".join(query))
+        return cur.fetchone()[0]
 
     def Update(self, table, values, filters=[], relations=[]):
         query = ["UPDATE"]
