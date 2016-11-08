@@ -92,6 +92,13 @@ class Model():
                 self._commited[k] = v
             self._dirty = {}
 
+    def delete(self):
+        if self._exists:
+            primary = self.primary_key
+            pk = getattr(self, primary.name)
+            proc().Delete(self.table_name, [(primary.name, '=', pk)])
+            self._exists = False
+
     @classmethod
     def get(cls, *args, **kwargs):
         filters = []
