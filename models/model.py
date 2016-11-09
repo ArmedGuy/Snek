@@ -48,7 +48,15 @@ class ModelMetaClass(type):
     def __init__(cls, name, bases, clsdict):
         type.__init__(cls, name, bases, clsdict)
         if len(cls.mro()) > 3:
-            cls.register()
+            i = [x for x in cls.__dict__.items()] # force iterator as array
+            for name, col in i:
+                if not isinstance(col, Col): continue
+                col.name = name
+                if col.args.get("_foreignKey"):
+                    proxy_name = col.name.replace("_key", "")
+                    fc = col.args.get("_foreignClass")
+                    pk = col.args.get("_foreignClassPrimaryKey")
+                    fc._foreignKeyHotpatch.append((cls, pk, proxy_name, col))
 
 class ModelBase(metaclass = ModelMetaClass):
     pass
@@ -197,17 +205,3 @@ class Model(ModelBase):
             found.append(cls(**res))
         return found
 
-    @classmethod
-    def register(cls): # loops through columns and adds hotpatches to other functions
-        i = [x for x in cls.__dict__.items()] # force iterator as array
-        for name, col in i:
-            if not isinstance(col, Col): continue
-            col.name = name
-            if col.args.get("_foreignKey"):
-                print("registering foreign key %s" % name)
-                proxy_name = col.name.replace("_key", "")
-                fc = col.args.get("_foreignClass")
-                pk = col.args.get("_foreignClassPrimaryKey")
-                print("foreign key %s -> %s.%s" % (name, fc.__name__, pk))
-                fc._foreignKeyHotpatch.append((cls, pk, proxy_name, col))
-        snek().registerModel(cls)
