@@ -2,6 +2,8 @@ import builtins
 from .column import Col
 def proc():
     return builtins._snek_instance._processor
+def snek():
+    return builtins._snek_instance
 class ModelAttribute(object):
     pass
 class ModelForeignToPrimaryAttribute(ModelAttribute):
@@ -21,14 +23,35 @@ class ModelForeignToPrimaryAttribute(ModelAttribute):
         setattr(instance, self._column.name, key)
         self._cache = None
 
+class ModelPrimaryToForeignAttribute(ModelAttribute):
+    def __init__(self, foreign_key_class, primary_key, foreign_key_proxy, column):
+        self._fkc = foreign_key_class
+        self._fkn = foreign_key_class.__name__.lower()
+        self._pk = primary_key
+        self._fk = "%s_key" % foreign_key_proxy
+        self._fkp = foreign_key_proxy
+        if(self._fkn.endswith("ss")):
+            self._fkpl = "%ses" % self._fkn
+        elif(self._fkn.endswith("s")):
+            pass
+        else:
+            self._fkpl = "%ss" % self._fkn
+        self._column = column
+        self._cache = None
+
+    def __get__(self, instance, owner):
+        if self._cache == None:
+            self._cache = self._fkc.find(**({self._fk: getattr(instance, self._pk)}))
+        return self._cache
+
 class Model():
+    _foreignKeyHotpatch = []
     def __init__(self, **values):
         if '__exists' in values:
             self._exists = True
             del values['__exists']
         else:
             self._exists = False
-        self._reserved = ["get", "find"]
         self._columns = {}
         self._commited = {}
         self._dirty = {}
@@ -39,20 +62,24 @@ class Model():
             col.name = name
             self._columns[name] = col
             if name in values:
+                if col.args.get("_foreignKey"):
+                    # patch foreign class
+                    proxy_name = col.name.replace("_key", "")
+                    fc = col.args.get("_foreignClass")
+                    pk = col.args.get("_foreignClassPrimaryKey")
+                    proxy = ModelForeignToPrimaryAttribute(fc, pk, col)
+                    setattr(self, proxy_name, proxy)
                 if self._exists:
-                    if col.args.get("_foreignKey"):
-                        # patch foreign class
-                        proxy_name = col.name.replace("_key", "")
-                        print(proxy_name)
-                        fc = col.args.get("_foreignClass")
-                        pk = col.args.get("_foreignClassPrimaryKey")
-                        print(pk)
-                        proxy = ModelForeignToPrimaryAttribute(fc, pk, col)
-                        setattr(self, proxy_name, proxy)
-                    else:
-                        self._commited[name] = values[name] #col.read(values[name])
+                    self._commited[name] = values[name] #col.read(values[name])
                 else:
                     self._dirty[name] = values[name]
+        # hotpatch own foreign key accessors
+        for c in self.__class__._foreignKeyHotpatch:
+            print("hotpatching class with foreign key accessors")
+            proxy = ModelPrimaryToForeignAttribute(*c)
+            setattr(self, proxy._fkpl, proxy)
+            print(proxy.__dict__)
+            print("hotpatched!")
 
     # internal function overrides
     def __str__(self):
@@ -68,28 +95,6 @@ class Model():
             if hasattr(value, '__get__'):
                 value = value.__get__(self, self.__class__)
             return value
-    """
-        cls = self.__class__
-        clsdir = dir(cls)
-        print("pre")
-        value = object.__getattribute__(self, name)
-        print("post")
-        print(self.__dict__)
-        if name in clsdir and (callable(getattr(cls,name)) or isinstance(getattr(cls,name), property)):
-            pass
-        elif isinstance(self.__dict__[name], property):
-            print("instance prop")
-        elif name in self._reserved:
-            pass
-        else:
-            raise AttributeError()
-        print("val")
-        print(value)
-        if hasattr(value, '__get__'):
-            print("do the get")
-            value = value.__get__(self, self.__class__)
-        return value
-    """
 
     def __getattr__(self, key):
         if not key.startswith("_") and key in self._columns.keys():
@@ -182,3 +187,18 @@ class Model():
             res['__exists'] = True
             found.append(cls(**res))
         return found
+
+    @classmethod
+    def register(cls): # loops through columns and adds hotpatches to other functions
+        i = [x for x in cls.__dict__.items()] # force iterator as array
+        for name, col in i:
+            if not isinstance(col, Col): continue
+            col.name = name
+            if col.args.get("_foreignKey"):
+                print("registering foreign key %s" % name)
+                proxy_name = col.name.replace("_key", "")
+                fc = col.args.get("_foreignClass")
+                pk = col.args.get("_foreignClassPrimaryKey")
+                print("foreign key %s -> %s.%s" % (name, fc.__name__, pk))
+                fc._foreignKeyHotpatch.append((cls, pk, proxy_name, col))
+        snek().registerModel(cls)
