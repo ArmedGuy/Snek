@@ -44,7 +44,16 @@ class ModelPrimaryToForeignAttribute(ModelAttribute):
             self._cache = self._fkc.find(**({self._fk: getattr(instance, self._pk)}))
         return self._cache
 
-class Model():
+class ModelMetaClass(type):
+    def __init__(cls, name, bases, clsdict):
+        type.__init__(cls, name, bases, clsdict)
+        if len(cls.mro()) > 3:
+            cls.register()
+
+class ModelBase(metaclass = ModelMetaClass):
+    pass
+
+class Model(ModelBase):
     _foreignKeyHotpatch = []
     def __init__(self, **values):
         if '__exists' in values:
