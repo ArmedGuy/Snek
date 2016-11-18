@@ -7,7 +7,7 @@ import builtins
 
 class Snek():
     def __init__(self, processor, host="localhost", port=None, user="root", password="", database="snek"):
-        self._models = []
+        self._models = {}
         builtins._snek_instance = self
         self._processor = None
         if processor not in SUPPORTED_PROCESSORS:
@@ -36,5 +36,5 @@ class Snek():
                 self._processor.DropTable(m)
 
     def registerModel(self, cls):
-        self._models.append(cls)
+        self._models[cls.__name__] = cls
 

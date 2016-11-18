@@ -1,11 +1,13 @@
 import builtins
 from .column import Col
+from collections import UserList
 def proc():
     return builtins._snek_instance._processor
 def snek():
     return builtins._snek_instance
 class ModelAttribute(object):
     pass
+
 class ModelForeignToPrimaryAttribute(ModelAttribute):
     def __init__(self, primary_key_class, primary_key, column):
         self._pkc = primary_key_class
@@ -21,7 +23,7 @@ class ModelForeignToPrimaryAttribute(ModelAttribute):
     def __set__(self, instance, value):
         key = getattr(value, self._pk)
         setattr(instance, self._column.name, key)
-        self._cache = None
+        self._cache = value
 
 class ModelPrimaryToForeignAttribute(ModelAttribute):
     def __init__(self, foreign_key_class, primary_key, foreign_key_proxy, column):
@@ -69,6 +71,8 @@ class Model(ModelBase):
             del values['__exists']
         else:
             self._exists = False
+        self._foreignKeys = []
+        self._foreignKeyBackrefs = []
         self._columns = {}
         self._commited = {}
         self._dirty = {}
@@ -86,17 +90,15 @@ class Model(ModelBase):
                     pk = col.args.get("_foreignClassPrimaryKey")
                     proxy = ModelForeignToPrimaryAttribute(fc, pk, col)
                     setattr(self, proxy_name, proxy)
+                    self._foreignKeys.append(proxy)
                 if self._exists:
                     self._commited[name] = values[name] #col.read(values[name])
                 else:
                     self._dirty[name] = values[name]
         # hotpatch own foreign key accessors
         for c in self.__class__._foreignKeyHotpatch:
-            print("hotpatching class with foreign key accessors")
             proxy = ModelPrimaryToForeignAttribute(*c)
             setattr(self, proxy._fkpl, proxy)
-            print(proxy.__dict__)
-            print("hotpatched!")
 
     # internal function overrides
     def __str__(self):
@@ -140,9 +142,11 @@ class Model(ModelBase):
     dirty = property(_get_dirty)
 
     def _get_primary(self):
-        primary = [(key, c) for key,c in self._columns.items() if c.args.get('primary')][0]
-        primary[1].name = primary[0]
-        return primary[1]
+        if not self._primary_key_cache:
+            primary = [(key, c) for key,c in self._columns.items() if c.args.get('primary')][0]
+            primary[1].name = primary[0]
+            self._primary_key_cache = primary[1]
+        return self._primary_key_cache
     primary_key = property(_get_primary)
 
     def _get_table_name(self):
@@ -151,6 +155,10 @@ class Model(ModelBase):
 
     # save
     def save(self):
+        print(self._foreignKeys)
+        for fk in self._foreignKeys:
+            if fk._cache != None and fk._cache.dirty:
+                fk._cache.save()
         if not self.dirty:
             return
         if self._exists: # remote object exists, update
