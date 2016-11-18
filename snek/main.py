@@ -1,8 +1,8 @@
 SUPPORTED_PROCESSORS = ["postgres"]
 import sys, inspect
 import psycopg2
-from processors import *
-from models import *
+from .processors import *
+from .models import *
 import builtins
 
 class Snek():
