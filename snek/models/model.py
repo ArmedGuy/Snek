@@ -73,6 +73,7 @@ class Model(ModelBase):
             self._exists = False
         self._foreignKeys = []
         self._foreignKeyBackrefs = []
+        self._primary_key_cache = None
         self._columns = {}
         self._commited = {}
         self._dirty = {}
