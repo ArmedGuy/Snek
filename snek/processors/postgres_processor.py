@@ -102,7 +102,7 @@ class PostgresProcessor(GeneralProcessor):
         if 'default' in col.args:
             ret.append("DEFAULT")
             ret.append(self._escapeValue(col.args['default']))
-        if 'unique' in col.args and col.args['unqiue']:
+        if 'unique' in col.args and col.args['unique']:
             ret.append("UNIQUE")
         if 'null' in col.args and col.args['null']:
             ret.append("NULL")
