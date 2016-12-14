@@ -40,6 +40,7 @@ class Col:
         kwargs['null'] = True
         kwargs['_foreignKey'] = True
         kwargs['_foreignClass'] = primary_key_class
+        kwargs['foreign'] = primary_key_class.__name__
         kwargs['_foreignClassPrimaryKey'] = primary_key.name
         return Col(type, kwargs)
 

@@ -99,6 +99,9 @@ class PostgresProcessor(GeneralProcessor):
         ret.append(col.args['type'])
         if 'primary' in col.args and col.args['primary']:
             ret.append("PRIMARY KEY")
+        if 'foreign' in col.args:
+            ret.append("REFERENCES")
+            ret.append("%s(id)" % self._escapeName(col.args['foreign']))
         if 'default' in col.args:
             ret.append("DEFAULT")
             ret.append(self._escapeValue(col.args['default']))
@@ -109,3 +112,4 @@ class PostgresProcessor(GeneralProcessor):
         elif 'null' not in col.args or not col.args['null']:
             ret.append("NOT NULL")
         return " ".join(ret)
+
