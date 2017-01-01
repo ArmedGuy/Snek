@@ -66,7 +66,6 @@ class ModelBase(metaclass = ModelMetaClass):
     pass
 
 class Model(ModelBase):
-    _foreignKeyHotpatch = []
     def __init__(self, **values):
         if '__exists' in values:
             self._exists = True
