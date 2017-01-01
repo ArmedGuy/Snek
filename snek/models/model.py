@@ -58,6 +58,8 @@ class ModelMetaClass(type):
                     proxy_name = col.name.replace("_key", "")
                     fc = col.args.get("_foreignClass")
                     pk = col.args.get("_foreignClassPrimaryKey")
+                    if not hasattr(fc, '_foreignKeyHotpatch'):
+                        fc._foreignKeyHotpatch = []
                     fc._foreignKeyHotpatch.append((cls, pk, proxy_name, col))
 
 class ModelBase(metaclass = ModelMetaClass):
@@ -97,9 +99,11 @@ class Model(ModelBase):
                 else:
                     self._dirty[name] = values[name]
         # hotpatch own foreign key accessors
-        for c in self.__class__._foreignKeyHotpatch:
-            proxy = ModelPrimaryToForeignAttribute(*c)
-            setattr(self, proxy._fkpl, proxy)
+        if hasattr(self.__class__, '_foreignKeyHotpatch'):
+            for c in self.__class__._foreignKeyHotpatch:
+                proxy = ModelPrimaryToForeignAttribute(*c)
+                setattr(self, proxy._fkpl, proxy)
+                print(self, proxy._fkpl, proxy)
 
     # internal function overrides
     def __str__(self):

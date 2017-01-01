@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name = 'snek-orm',
   packages = ['snek', 'snek.processors','snek.models'], # this must be the same as the name above
-  version = '0.0.5',
+  version = '0.0.7',
   description = 'ORM library created just for fun',
   author = 'Johan Jatko',
   author_email = 'armedguy@ludd.ltu.se',
