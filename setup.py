@@ -7,7 +7,7 @@ setup(
   author = 'Johan Jatko',
   author_email = 'armedguy@ludd.ltu.se',
   url = 'https://github.com/ArmedGuy/Snek', # use the URL to the github repo
-  download_url = 'https://github.com/ArmedGuy/Snek/tarball/0.0.5',
+  download_url = 'https://github.com/ArmedGuy/Snek/tarball/0.0.7',
   keywords = ['no','step','on','snek','orm'], # arbitrary keywords
   classifiers = []
 )
